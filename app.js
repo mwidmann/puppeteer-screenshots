@@ -2,10 +2,17 @@ const express = require('express');
 const cron = require('node-cron');
 const puppetteer = require('puppeteer');
 
-let browser;
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 const screenshot = async () => {
   console.log(`screenshotting.....`);
+  let browser;
   try {
+    browser = await puppetteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
     const page = await browser.newPage();
     await page.setViewport({ width: 1080, height: 1920 });
 
@@ -15,8 +22,9 @@ const screenshot = async () => {
     });
 
     try {
-      // first time the cookie notice shows up... click it away
+      // click away the Cookiebot dialog and wait a second until the animation is over
       await page.click('#CybotCookiebotDialogBodyButtonAccept');
+      await sleep(1000);
     } catch (e) {}
 
     await page.screenshot({
@@ -24,16 +32,13 @@ const screenshot = async () => {
     });
   } catch (e) {
     console.error(`Couldn't take a screenshot. Message "${e.message}".`);
+  } finally {
+    await browser.close();
   }
 };
 
 (async () => {
   try {
-    browser = await puppetteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-
     cron.schedule('* * * * *', () => {
       screenshot();
     });
